@@ -34,34 +34,19 @@
     - unzip
 
 - name: Unconfigure vsts-agent
-  expect:
+  command: "./config.sh remove --unattended --auth PAT --token {{vsts_accesstoken}}"
+  args:
     chdir: "{{vsts_agentfolder}}"
-    command: "./config.sh remove"
-    echo: true
-    removes: "{{vsts_agentfolder}}/.agent"
-    responses:
-      Enter authentication type: "PAT"
-      Enter personal access token: "{{vsts_accesstoken}}"
   when: vsts_reconfigure_agent|bool
   tags:
     - config
     - unconfig
 
+
 - name: Configure vsts-agent
-  expect:
+  command: "./config.sh --unattended --acceptteeeula --url {{vsts_server_url}} --auth PAT --token {{vsts_accesstoken}} --pool '{{vsts_poolname}}' --agent {{vsts_agent_name}} --work {{vsts_workfolder}} --replace"
+  args:
     chdir: "{{vsts_agentfolder}}"
-    command: "./config.sh"
-    echo: true
-    creates: "{{vsts_agentfolder}}/.agent"
-    responses:
-      Accept the Team Explorer Everywhere license: "Y"
-      Enter server URL: "{{vsts_server_url}}"
-      Enter authentication type: "PAT"
-      Enter personal access token: "{{vsts_accesstoken}}"
-      Enter agent pool: "{{vsts_poolname}}"
-      Enter agent name: "{{vsts_agent_name}}"
-      Enter replace: "Y"
-      Enter work folder: "{{vsts_workfolder}}"
   become_user: "{{vsts_agent_user}}"
   tags:
     - config

@@ -55,12 +55,14 @@
 - name: Extend runsvc.sh with addition configuration
   lineinfile:
     dest: "{{vsts_agentfolder}}/runsvc.sh"
-    regexp: '^source /opt/rh/rh-git29/enable'
+    regexp: "{{ item.regex }}"
     insertafter: '^# insert anything to setup env when running as a service'
-    line: 'source /opt/rh/rh-git29/enable'
+    line: "{{ item.line }}"
+  with_items: "{{ runsvc_regex_fileline }}"
   tags:
     - config
     - service
+  when: runsvc_regex_fileline is defined
 
 
 - name: Enable and start vsts-agent service

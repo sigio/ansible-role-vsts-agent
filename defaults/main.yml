@@ -18,3 +18,8 @@ vsts_server_url: "https://{{vsts_accountname}}.visualstudio.com/"
 vsts_agent_name: "{{ansible_hostname}}"
 vsts_agentfolder: "/home/{{vsts_agent_user}}/agent/"
 vsts_workfolder: "/home/{{vsts_agent_user}}/work/"
+
+vsts_remove: false
+
+runsvc_regex_fileline:
+  - { regex: '^source /opt/rh/rh-git29/enable', line: 'source /opt/rh/rh-git29/enable'}

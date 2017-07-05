@@ -6,8 +6,8 @@
     - icu
     - libunwind
     - rh-git29
-    - pexpect
     - python-pip
+  become: true
   tags:
     - pkg
 
@@ -33,45 +33,63 @@
     - fetch
     - unzip
 
-- name: Unconfigure vsts-agent
-  expect:
-    chdir: "{{vsts_agentfolder}}"
-    command: "./config.sh remove"
-    echo: true
-    removes: "{{vsts_agentfolder}}/.agent"
-    responses:
-      Enter authentication type: "PAT"
-      Enter personal access token: "{{vsts_accesstoken}}"
-  when: vsts_reconfigure_agent|bool
-  tags:
-    - config
-    - unconfig
-
 - name: Configure vsts-agent
-  expect:
+  command: "./config.sh --unattended --acceptteeeula --url {{vsts_server_url}} --auth PAT --token {{vsts_accesstoken}} --pool '{{vsts_poolname}}' --agent {{vsts_agent_name}} --work {{vsts_workfolder}} --replace"
+  args:
     chdir: "{{vsts_agentfolder}}"
-    command: "./config.sh"
-    echo: true
     creates: "{{vsts_agentfolder}}/.agent"
-    responses:
-      Accept the Team Explorer Everywhere license: "Y"
-      Enter server URL: "{{vsts_server_url}}"
-      Enter authentication type: "PAT"
-      Enter personal access token: "{{vsts_accesstoken}}"
-      Enter agent pool: "{{vsts_poolname}}"
-      Enter agent name: "{{vsts_agent_name}}"
-      Enter replace: "Y"
-      Enter work folder: "{{vsts_workfolder}}"
   become_user: "{{vsts_agent_user}}"
   tags:
     - config
 
-- name: Template systemd service file for vsts
-  template: src="vsts-agent.service" dest="/etc/systemd/system/vsts-agent.service" owner=root group=root mode=0644
+- name: Initial installation of systemd service files and generation of runsvc.sh
+  command: "./svc.sh install"
+  args:
+    chdir: "{{vsts_agentfolder}}"
+    creates: "/etc/systemd/system/vsts.agent.{{ vsts_accountname }}.{{ vsts_agent_name }}.service"
+  become: true
+  tags:
+    - config
+    - service
+
+- name: Extend runsvc.sh with addition configuration
+  lineinfile:
+    dest: "{{vsts_agentfolder}}/runsvc.sh"
+    regexp: "{{ item.regex }}"
+    insertafter: '^# insert anything to setup env when running as a service'
+    line: "{{ item.line }}"
+  with_items: "{{ runsvc_regex_fileline }}"
+  tags:
+    - config
+    - service
+  when: runsvc_regex_fileline is defined
+
+
+- name: Enable and start vsts-agent service
+  service:
+    name: "vsts.agent.{{ vsts_accountname }}.{{ vsts_agent_name }}"
+    enabled: yes
+    state: started
+  become: true
   tags:
     - service
 
-- name: Enable and start vsts-agent service
-  service: name="vsts-agent" enabled=yes state=started
+- name: Unconfigure vsts-agent - remove service
+  command: "./svc.sh uninstall"
+  args:
+    chdir: "{{vsts_agentfolder}}"
+    removes: "/etc/systemd/system/vsts.agent.{{ vsts_accountname }}.{{ vsts_agent_name }}.service"
+  when: vsts_remove|bool
+  become: true
   tags:
     - service
+    - unconfig
+
+- name: Unconfigure vsts-agent
+  command: "./config.sh remove --unattended --auth PAT --token {{vsts_accesstoken}}"
+  args:
+    chdir: "{{vsts_agentfolder}}"
+  become_user: "{{vsts_agent_user}}"
+  when: vsts_remove|bool
+  tags:
+    - unconfig
